@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Doraemon 3D World</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      overflow: hidden;
+      background: #000;
+      font-family: 'Segoe UI', sans-serif;
+    }
+
+    canvas {
+      display: block;
+    }
+
+    /* Character Selection UI */
+    #charPanel {
+      position: fixed;
+      right: 20px;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      z-index: 100;
+    }
+
+    .char-btn {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      cursor: pointer;
+      transition: all 0.3s ease;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      color: white;
+      font-weight: bold;
+      text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    }
+
+    .char-btn:hover {
+      transform: scale(1.15);
+      box-shadow: 0 6px 25px rgba(0, 0, 0, 0.5);
+    }
+
+    .char-btn.active {
+      border-color: #FFD700;
+      box-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
+      transform: scale(1.1);
+    }
+
+    .char-btn .key {
+      position: absolute;
+      top: -8px;
+      right: -8px;
+      background: rgba(0, 0, 0, 0.7);
+      color: #FFD700;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      font-size: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #currentChar {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: white;
+      font-size: 22px;
+      font-weight: bold;
+      text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.8);
+      background: rgba(0, 0, 0, 0.4);
+      padding: 8px 25px;
+      border-radius: 25px;
+      backdrop-filter: blur(10px);
+      z-index: 100;
+    }
+
+    #controls {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: rgba(255, 255, 255, 0.6);
+      font-size: 13px;
+      background: rgba(0, 0, 0, 0.4);
+      padding: 8px 20px;
+      border-radius: 15px;
+      backdrop-filter: blur(10px);
+      z-index: 100;
+    }
+
+    #minimap {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 150px;
+      height: 150px;
+      background: rgba(0, 0, 0, 0.5);
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      border-radius: 10px;
+      z-index: 100;
+      overflow: hidden;
+    }
+
+    #minimapCanvas {
+      width: 100%;
+      height: 100%;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="currentChar">🤖 Doraemon</div>
+
+  <div id="charPanel">
+    <div class="char-btn active" style="background: radial-gradient(circle, #0091d3, #006a9e);" onclick="switchChar(0)"
+      id="btn0">
+      Doraemon<span class="key">1</span>
+    </div>
+    <div class="char-btn" style="background: radial-gradient(circle, #FFD700, #B8860B);" onclick="switchChar(1)"
+      id="btn1">
+      Nobita<span class="key">2</span>
+    </div>
+    <div class="char-btn" style="background: radial-gradient(circle, #FF6B35, #CC4400);" onclick="switchChar(2)"
+      id="btn2">
+      Chaien<span class="key">3</span>
+    </div>
+    <div class="char-btn" style="background: radial-gradient(circle, #2ECC71, #1a9e4f);" onclick="switchChar(3)"
+      id="btn3">
+      Suneo<span class="key">4</span>
+    </div>
+    <div class="char-btn" style="background: radial-gradient(circle, #FF69B4, #cc3388);" onclick="switchChar(4)"
+      id="btn4">
+      Shizuka<span class="key">5</span>
+    </div>
+  </div>
+
+  <div id="controls">🎮 WASD di chuyển &nbsp;|&nbsp; 1-5 đổi nhân vật &nbsp;|&nbsp; Chuột xoay camera</div>
+
+  <div id="minimap"><canvas id="minimapCanvas" width="150" height="150"></canvas></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script>
+    // ========== SETUP ==========
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x87CEEB);
+    scene.fog = new THREE.FogExp2(0x87CEEB, 0.003);
+
+    const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    document.body.appendChild(renderer.domElement);
+
+    // ========== LIGHTS ==========
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+    scene.add(ambientLight);
+
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    dirLight.position.set(50, 80, 50);
+    dirLight.castShadow = true;
+    dirLight.shadow.mapSize.width = 2048;
+    dirLight.shadow.mapSize.height = 2048;
+    dirLight.shadow.camera.near = 0.5;
+    dirLight.shadow.camera.far = 200;
+    dirLight.shadow.camera.left = -100;
+    dirLight.shadow.camera.right = 100;
+    dirLight.shadow.camera.top = 100;
+    dirLight.shadow.camera.bottom = -100;
+    scene.add(dirLight);
+
+    const hemiLight = new THREE.HemisphereLight(0x87CEEB, 0x556B2F, 0.3);
+    scene.add(hemiLight);
+
+    // ========== GROUND ==========
+    const groundGeo = new THREE.PlaneGeometry(200, 200);
+    const groundMat = new THREE.MeshLambertMaterial({ color: 0x4CAF50 });
+    const ground = new THREE.Mesh(groundGeo, groundMat);
+    ground.rotation.x = -Math.PI / 2;
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    // Grid lines
+    const gridHelper = new THREE.GridHelper(200, 40, 0x3d8b3d, 0x3d8b3d);
+    gridHelper.position.y = 0.01;
+    gridHelper.material.opacity = 0.15;
+    gridHelper.material.transparent = true;
+    scene.add(gridHelper);
+
+    // ========== ROAD ==========
+    function createRoad(x, z, w, d) {
+      const geo = new THREE.PlaneGeometry(w, d);
+      const mat = new THREE.MeshLambertMaterial({ color: 0x555555 });
+      const road = new THREE.Mesh(geo, mat);
+      road.rotation.x = -Math.PI / 2;
+      road.position.set(x, 0.02, z);
+      road.receiveShadow = true;
+      scene.add(road);
+      // White center line
+      const lineGeo = new THREE.PlaneGeometry(w * 0.02, d * 0.8);
+      const lineMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+      const line = new THREE.Mesh(lineGeo, lineMat);
+      line.rotation.x = -Math.PI / 2;
+      line.position.set(x, 0.03, z);
+      scene.add(line);
+    }
+    createRoad(0, 0, 6, 200);
+    createRoad(0, 0, 200, 6);
+
+    // ========== CHARACTER DEFINITIONS ==========
+    const charDefs = [
+      { name: 'Doraemon', emoji: '🤖', color: 0x0091d3, headColor: 0x0091d3, bodyColor: 0x0091d3, faceColor: 0xffffff, scale: 1, housePos: { x: -30, z: -30 }, houseColor: 0x0091d3 },
+      { name: 'Nobita', emoji: '👓', color: 0xFFD700, headColor: 0xFFE4C4, bodyColor: 0xFFD700, faceColor: 0xFFE4C4, scale: 1.05, housePos: { x: 30, z: -30 }, houseColor: 0xFFD700 },
+      { name: 'Chaien', emoji: '💪', color: 0xFF6B35, headColor: 0xDEB887, bodyColor: 0xFF6B35, faceColor: 0xDEB887, scale: 1.3, housePos: { x: -30, z: 30 }, houseColor: 0xFF6B35 },
+      { name: 'Suneo', emoji: '💎', color: 0x2ECC71, headColor: 0xFFE4C4, bodyColor: 0x2ECC71, faceColor: 0xFFE4C4, scale: 0.9, housePos: { x: 30, z: 30 }, houseColor: 0x2ECC71 },
+      { name: 'Shizuka', emoji: '🎀', color: 0xFF69B4, headColor: 0xFFE4C4, bodyColor: 0xFF69B4, faceColor: 0xFFE4C4, scale: 1, housePos: { x: 0, z: -50 }, houseColor: 0xFF69B4 },
+    ];
+
+    // ========== CREATE 3D CHARACTER ==========
+    function createCharacter(def) {
+      const group = new THREE.Group();
+      const s = def.scale;
+
+      // -- Head --
+      const headGeo = new THREE.SphereGeometry(1.2 * s, 32, 32);
+      const headMat = new THREE.MeshPhongMaterial({ color: def.headColor, shininess: 60 });
+      const head = new THREE.Mesh(headGeo, headMat);
+      head.position.y = 3.8 * s;
+      head.castShadow = true;
+      group.add(head);
+
+      // -- Face (white front) --
+      if (def.name === 'Doraemon') {
+        const faceGeo = new THREE.SphereGeometry(1.0 * s, 32, 32);
+        const faceMat = new THREE.MeshPhongMaterial({ color: 0xffffff });
+        const face = new THREE.Mesh(faceGeo, faceMat);
+        face.position.set(0, 3.6 * s, 0.5 * s);
+        face.scale.set(1, 0.9, 0.6);
+        group.add(face);
+      }
+
+      // -- Eyes --
+      const eyeGeo = new THREE.SphereGeometry(0.2 * s, 16, 16);
+      const eyeMat = new THREE.MeshPhongMaterial({ color: 0x111111 });
+      const eyeL = new THREE.Mesh(eyeGeo, eyeMat);
+      const eyeR = new THREE.Mesh(eyeGeo, eyeMat);
+      eyeL.position.set(-0.35 * s, 4.0 * s, 1.0 * s);
+      eyeR.position.set(0.35 * s, 4.0 * s, 1.0 * s);
+      group.add(eyeL, eyeR);
+
+      // White eye background
+      const eyeBgGeo = new THREE.SphereGeometry(0.3 * s, 16, 16);
+      const eyeBgMat = new THREE.MeshPhongMaterial({ color: 0xffffff });
+      const eyeBgL = new THREE.Mesh(eyeBgGeo, eyeBgMat);
+      const eyeBgR = new THREE.Mesh(eyeBgGeo, eyeBgMat);
+      eyeBgL.position.set(-0.35 * s, 4.0 * s, 0.9 * s);
+      eyeBgR.position.set(0.35 * s, 4.0 * s, 0.9 * s);
+      group.add(eyeBgL, eyeBgR);
+
+      // -- Nose --
+      const noseGeo = new THREE.SphereGeometry(0.18 * s, 16, 16);
+      const noseMat = new THREE.MeshPhongMaterial({ color: def.name === 'Doraemon' ? 0xe00000 : 0xDEB887 });
+      const nose = new THREE.Mesh(noseGeo, noseMat);
+      nose.position.set(0, 3.6 * s, 1.15 * s);
+      group.add(nose);
+
+      // -- Mouth --
+      const mouthGeo = new THREE.TorusGeometry(0.25 * s, 0.04 * s, 8, 16, Math.PI);
+      const mouthMat = new THREE.MeshPhongMaterial({ color: 0x333333 });
+      const mouth = new THREE.Mesh(mouthGeo, mouthMat);
+      mouth.position.set(0, 3.3 * s, 1.05 * s);
+      mouth.rotation.x = Math.PI;
+      group.add(mouth);
+
+      // -- Hair (for non-Doraemon) --
+      if (def.name !== 'Doraemon') {
+        const hairColor = def.name === 'Nobita' ? 0x1a1a1a : (def.name === 'Chaien' ? 0x2d1b00 : (def.name === 'Suneo' ? 0x1a1a1a : 0x2d1b00));
+        const hairGeo = new THREE.SphereGeometry(1.25 * s, 32, 32, 0, Math.PI * 2, 0, Math.PI * 0.55);
+        const hairMat = new THREE.MeshPhongMaterial({ color: hairColor });
+        const hair = new THREE.Mesh(hairGeo, hairMat);
+        hair.position.y = 3.85 * s;
+        hair.castShadow = true;
+        group.add(hair);
+
+        // Suneo spiky hair
+        if (def.name === 'Suneo') {
+          for (let i = 0; i < 5; i++) {
+            const spikeGeo = new THREE.ConeGeometry(0.15 * s, 0.8 * s, 8);
+            const spike = new THREE.Mesh(spikeGeo, hairMat);
+            spike.position.set(
+              Math.sin(i * 0.8 - 1.6) * 0.7 * s,
+              5.1 * s + Math.sin(i) * 0.15,
+              Math.cos(i * 0.8 - 1.6) * 0.3 * s
+            );
+            spike.rotation.z = Math.sin(i * 0.8 - 1.6) * 0.3;
+            group.add(spike);
+          }
+        }
+
+        // Nobita glasses
+        if (def.name === 'Nobita') {
+          const glassRingGeo = new THREE.TorusGeometry(0.35 * s, 0.04 * s, 8, 24);
+          const glassMat = new THREE.MeshPhongMaterial({ color: 0x333333 });
+          const glassL = new THREE.Mesh(glassRingGeo, glassMat);
+          const glassR = new THREE.Mesh(glassRingGeo, glassMat);
+          glassL.position.set(-0.38 * s, 3.95 * s, 1.05 * s);
+          glassR.position.set(0.38 * s, 3.95 * s, 1.05 * s);
+          group.add(glassL, glassR);
+          // Lens
+          const lensGeo = new THREE.CircleGeometry(0.32 * s, 24);
+          const lensMat = new THREE.MeshPhongMaterial({ color: 0xccddff, transparent: true, opacity: 0.3 });
+          const lensL = new THREE.Mesh(lensGeo, lensMat);
+          const lensR = new THREE.Mesh(lensGeo, lensMat);
+          lensL.position.set(-0.38 * s, 3.95 * s, 1.06 * s);
+          lensR.position.set(0.38 * s, 3.95 * s, 1.06 * s);
+          group.add(lensL, lensR);
+          // Bridge
+          const bridgeGeo = new THREE.CylinderGeometry(0.03 * s, 0.03 * s, 0.3 * s, 8);
+          const bridge = new THREE.Mesh(bridgeGeo, glassMat);
+          bridge.position.set(0, 3.98 * s, 1.1 * s);
+          bridge.rotation.z = Math.PI / 2;
+          group.add(bridge);
+        }
+
+        // Shizuka ribbon
+        if (def.name === 'Shizuka') {
+          const ribbonGeo = new THREE.SphereGeometry(0.25 * s, 12, 12);
+          const ribbonMat = new THREE.MeshPhongMaterial({ color: 0xff1493 });
+          const ribbon = new THREE.Mesh(ribbonGeo, ribbonMat);
+          ribbon.position.set(0.7 * s, 4.8 * s, 0);
+          ribbon.scale.set(1.5, 0.8, 0.8);
+          group.add(ribbon);
+          const ribbon2 = ribbon.clone();
+          ribbon2.position.set(1.1 * s, 4.6 * s, 0);
+          ribbon2.scale.set(1, 0.6, 0.6);
+          group.add(ribbon2);
+        }
+      }
+
+      // -- Doraemon bell & collar --
+      if (def.name === 'Doraemon') {
+        const collarGeo = new THREE.TorusGeometry(0.85 * s, 0.1 * s, 8, 24);
+        const collarMat = new THREE.MeshPhongMaterial({ color: 0xe00000 });
+        const collar = new THREE.Mesh(collarGeo, collarMat);
+        collar.position.y = 2.7 * s;
+        collar.rotation.x = Math.PI / 2;
+        group.add(collar);
+        const bellGeo = new THREE.SphereGeometry(0.2 * s, 16, 16);
+        const bellMat = new THREE.MeshPhongMaterial({ color: 0xFFD700, shininess: 100 });
+        const bell = new THREE.Mesh(bellGeo, bellMat);
+        bell.position.set(0, 2.5 * s, 0.7 * s);
+        group.add(bell);
+      }
+
+      // -- Body --
+      const bodyGeo = new THREE.CylinderGeometry(0.8 * s, 0.9 * s, 2 * s, 32);
+      const bodyMat = new THREE.MeshPhongMaterial({ color: def.bodyColor, shininess: 40 });
+      const body = new THREE.Mesh(bodyGeo, bodyMat);
+      body.position.y = 2 * s;
+      body.castShadow = true;
+      group.add(body);
+
+      // Belly (white front for Doraemon)
+      if (def.name === 'Doraemon') {
+        const bellyGeo = new THREE.SphereGeometry(0.7 * s, 32, 32);
+        const bellyMat = new THREE.MeshPhongMaterial({ color: 0xffffff });
+        const belly = new THREE.Mesh(bellyGeo, bellyMat);
+        belly.position.set(0, 2 * s, 0.5 * s);
+        belly.scale.set(1, 1, 0.5);
+        group.add(belly);
+        // Pocket
+        const pocketGeo = new THREE.SphereGeometry(0.4 * s, 24, 24, 0, Math.PI * 2, 0, Math.PI * 0.5);
+        const pocketMat = new THREE.MeshPhongMaterial({ color: 0xffffff, side: THREE.DoubleSide });
+        const pocket = new THREE.Mesh(pocketGeo, pocketMat);
+        pocket.position.set(0, 1.7 * s, 0.65 * s);
+        pocket.rotation.x = Math.PI;
+        group.add(pocket);
+      }
+
+      // Shizuka skirt
+      if (def.name === 'Shizuka') {
+        const skirtGeo = new THREE.ConeGeometry(1.3 * s, 1.2 * s, 32, 1, true);
+        const skirtMat = new THREE.MeshPhongMaterial({ color: 0xFF69B4, side: THREE.DoubleSide });
+        const skirt = new THREE.Mesh(skirtGeo, skirtMat);
+        skirt.position.y = 1.2 * s;
+        skirt.rotation.x = Math.PI;
+        group.add(skirt);
+      }
+
+      // -- Arms --
+      const armGeo = new THREE.CylinderGeometry(0.2 * s, 0.2 * s, 1.2 * s, 16);
+      const armMat = new THREE.MeshPhongMaterial({ color: def.name === 'Doraemon' ? 0x0091d3 : def.bodyColor });
+      const armL = new THREE.Mesh(armGeo, armMat);
+      const armR = new THREE.Mesh(armGeo, armMat);
+      armL.position.set(-1.1 * s, 2.3 * s, 0);
+      armR.position.set(1.1 * s, 2.3 * s, 0);
+      armL.castShadow = true; armR.castShadow = true;
+      group.add(armL, armR);
+
+      // Hands
+      const handGeo = new THREE.SphereGeometry(0.25 * s, 16, 16);
+      const handMat = new THREE.MeshPhongMaterial({ color: def.name === 'Doraemon' ? 0xffffff : 0xFFE4C4 });
+      const handL = new THREE.Mesh(handGeo, handMat);
+      const handR = new THREE.Mesh(handGeo, handMat);
+      handL.position.set(-1.1 * s, 1.6 * s, 0);
+      handR.position.set(1.1 * s, 1.6 * s, 0);
+      group.add(handL, handR);
+
+      // -- Legs --
+      const legGeo = new THREE.CylinderGeometry(0.25 * s, 0.25 * s, 1.0 * s, 16);
+      const legMat = new THREE.MeshPhongMaterial({ color: def.name === 'Doraemon' ? 0x0091d3 : 0x3366AA });
+      const legL = new THREE.Mesh(legGeo, legMat);
+      const legR = new THREE.Mesh(legGeo, legMat);
+      legL.position.set(-0.4 * s, 0.5 * s, 0);
+      legR.position.set(0.4 * s, 0.5 * s, 0);
+      legL.castShadow = true; legR.castShadow = true;
+      group.add(legL, legR);
+
+      // Feet
+      const footGeo = new THREE.SphereGeometry(0.3 * s, 16, 16);
+      const footMat = new THREE.MeshPhongMaterial({ color: def.name === 'Doraemon' ? 0xffffff : 0x8B4513 });
+      const footL = new THREE.Mesh(footGeo, footMat);
+      const footR = new THREE.Mesh(footGeo, footMat);
+      footL.position.set(-0.4 * s, 0.1 * s, 0.15 * s);
+      footR.position.set(0.4 * s, 0.1 * s, 0.15 * s);
+      footL.scale.set(1, 0.6, 1.4);
+      footR.scale.set(1, 0.6, 1.4);
+      group.add(footL, footR);
+
+      // Store refs for animation
+      group.userData = { armL, armR, legL, legR, def };
+      return group;
+    }
+
+    // ========== CREATE HOUSE ==========
+    function createHouse(def) {
+      const group = new THREE.Group();
+      const pos = def.housePos;
+
+      // Walls
+      const wallGeo = new THREE.BoxGeometry(10, 8, 10);
+      const wallMat = new THREE.MeshPhongMaterial({ color: 0xFFF8DC });
+      const walls = new THREE.Mesh(wallGeo, wallMat);
+      walls.position.set(pos.x, 4, pos.z);
+      walls.castShadow = true;
+      walls.receiveShadow = true;
+      group.add(walls);
+
+      // Roof
+      const roofGeo = new THREE.ConeGeometry(8, 5, 4);
+      const roofMat = new THREE.MeshPhongMaterial({ color: def.houseColor });
+      const roof = new THREE.Mesh(roofGeo, roofMat);
+      roof.position.set(pos.x, 10.5, pos.z);
+      roof.rotation.y = Math.PI / 4;
+      roof.castShadow = true;
+      group.add(roof);
+
+      // Door
+      const doorGeo = new THREE.PlaneGeometry(2.5, 4);
+      const doorMat = new THREE.MeshPhongMaterial({ color: 0x8B4513 });
+      const door = new THREE.Mesh(doorGeo, doorMat);
+      door.position.set(pos.x, 2, pos.z + 5.01);
+      group.add(door);
+
+      // Door handle
+      const handleGeo = new THREE.SphereGeometry(0.15, 12, 12);
+      const handleMat = new THREE.MeshPhongMaterial({ color: 0xFFD700, shininess: 100 });
+      const handle = new THREE.Mesh(handleGeo, handleMat);
+      handle.position.set(pos.x + 0.7, 2.2, pos.z + 5.1);
+      group.add(handle);
+
+      // Windows
+      const winGeo = new THREE.PlaneGeometry(2, 2);
+      const winMat = new THREE.MeshPhongMaterial({ color: 0x87CEEB, transparent: true, opacity: 0.7 });
+      [-3, 3].forEach(xOff => {
+        const win = new THREE.Mesh(winGeo, winMat);
+        win.position.set(pos.x + xOff, 5.5, pos.z + 5.01);
+        group.add(win);
+        // Window frame
+        const frameGeo = new THREE.PlaneGeometry(2.3, 2.3);
+        const frameMat = new THREE.MeshPhongMaterial({ color: 0xffffff });
+        const frame = new THREE.Mesh(frameGeo, frameMat);
+        frame.position.set(pos.x + xOff, 5.5, pos.z + 5.005);
+        group.add(frame);
+        const winInner = new THREE.Mesh(winGeo, winMat);
+        winInner.position.set(pos.x + xOff, 5.5, pos.z + 5.015);
+        group.add(winInner);
+      });
+
+      // Side windows
+      const sideWinGeo = new THREE.PlaneGeometry(2, 2);
+      const sideWin = new THREE.Mesh(sideWinGeo, winMat);
+      sideWin.position.set(pos.x + 5.01, 5.5, pos.z);
+      sideWin.rotation.y = Math.PI / 2;
+      group.add(sideWin);
+
+      // Nameplate
+      const plateGeo = new THREE.BoxGeometry(4, 1, 0.1);
+      const plateMat = new THREE.MeshPhongMaterial({ color: def.houseColor });
+      const plate = new THREE.Mesh(plateGeo, plateMat);
+      plate.position.set(pos.x, 6.8, pos.z + 5.06);
+      group.add(plate);
+
+      // Name text using canvas
+      const canvas = document.createElement('canvas');
+      canvas.width = 256; canvas.height = 64;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 32px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(`Nhà ${def.name}`, 128, 42);
+      const texture = new THREE.CanvasTexture(canvas);
+      const labelGeo = new THREE.PlaneGeometry(3.8, 0.9);
+      const labelMat = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
+      const label = new THREE.Mesh(labelGeo, labelMat);
+      label.position.set(pos.x, 6.8, pos.z + 5.12);
+      group.add(label);
+
+      // Fence around house
+      for (let i = -7; i <= 7; i += 2) {
+        const postGeo = new THREE.CylinderGeometry(0.08, 0.08, 1.5, 8);
+        const postMat = new THREE.MeshPhongMaterial({ color: 0xffffff });
+        [pos.z - 7, pos.z + 7].forEach(zz => {
+          if (Math.abs(i) > 1 || zz !== pos.z + 7) {
+            const p = new THREE.Mesh(postGeo, postMat);
+            p.position.set(pos.x + i, 0.75, zz);
+            group.add(p);
+          }
+        });
+        [pos.x - 7, pos.x + 7].forEach(xx => {
+          const p = new THREE.Mesh(postGeo, postMat);
+          p.position.set(xx, 0.75, pos.z + i);
+          group.add(p);
+        });
+      }
+
+      // Garden flower near house
+      for (let i = 0; i < 6; i++) {
+        const flowerGeo = new THREE.SphereGeometry(0.3, 8, 8);
+        const colors = [0xFF69B4, 0xFF6347, 0xFFD700, 0xFF1493, 0xDA70D6, 0x00CED1];
+        const flowerMat = new THREE.MeshPhongMaterial({ color: colors[i] });
+        const flower = new THREE.Mesh(flowerGeo, flowerMat);
+        const angle = (i / 6) * Math.PI * 2;
+        flower.position.set(
+          pos.x + Math.cos(angle) * 6 + (Math.random() - 0.5) * 2,
+          0.4,
+          pos.z + Math.sin(angle) * 6 + (Math.random() - 0.5) * 2
+        );
+        group.add(flower);
+
+        // Stem
+        const stemGeo = new THREE.CylinderGeometry(0.03, 0.03, 0.4, 4);
+        const stemMat = new THREE.MeshPhongMaterial({ color: 0x228B22 });
+        const stem = new THREE.Mesh(stemGeo, stemMat);
+        stem.position.copy(flower.position);
+        stem.position.y = 0.2;
+        group.add(stem);
+      }
+
+      return group;
+    }
+
+    // ========== CREATE TREE ==========
+    function createTree(x, z) {
+      const group = new THREE.Group();
+      // Trunk
+      const trunkGeo = new THREE.CylinderGeometry(0.3, 0.5, 3, 12);
+      const trunkMat = new THREE.MeshPhongMaterial({ color: 0x8B4513 });
+      const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+      trunk.position.set(x, 1.5, z);
+      trunk.castShadow = true;
+      group.add(trunk);
+      // Leaves
+      const leavesMats = [0x228B22, 0x2E8B57, 0x32CD32];
+      for (let i = 0; i < 3; i++) {
+        const leavesGeo = new THREE.SphereGeometry(1.8 - i * 0.3, 16, 16);
+        const lMat = new THREE.MeshPhongMaterial({ color: leavesMats[i % 3] });
+        const leaves = new THREE.Mesh(leavesGeo, lMat);
+        leaves.position.set(x + (Math.random() - 0.5) * 0.8, 3.5 + i * 0.7, z + (Math.random() - 0.5) * 0.8);
+        leaves.castShadow = true;
+        group.add(leaves);
+      }
+      return group;
+    }
+
+    // ========== CREATE LAMP POST ==========
+    function createLamp(x, z) {
+      const group = new THREE.Group();
+      const poleGeo = new THREE.CylinderGeometry(0.08, 0.1, 5, 8);
+      const poleMat = new THREE.MeshPhongMaterial({ color: 0x333333 });
+      const pole = new THREE.Mesh(poleGeo, poleMat);
+      pole.position.set(x, 2.5, z);
+      group.add(pole);
+
+      const lightGeo = new THREE.SphereGeometry(0.4, 12, 12);
+      const lightMat = new THREE.MeshPhongMaterial({ color: 0xFFFF00, emissive: 0xFFFF00, emissiveIntensity: 0.5 });
+      const lightBulb = new THREE.Mesh(lightGeo, lightMat);
+      lightBulb.position.set(x, 5.2, z);
+      group.add(lightBulb);
+
+      const pointLight = new THREE.PointLight(0xFFFFAA, 0.5, 15);
+      pointLight.position.set(x, 5, z);
+      group.add(pointLight);
+
+      return group;
+    }
+
+    // ========== POPULATE WORLD ==========
+    const characters = [];
+    const characterModels = [];
+
+    charDefs.forEach((def, i) => {
+      // Create character
+      const char = createCharacter(def);
+      char.position.set(def.housePos.x, 0, def.housePos.z + 10);
+      char.visible = (i === 0);
+      scene.add(char);
+      characterModels.push(char);
+      characters.push({
+        model: char, x: def.housePos.x, z: def.housePos.z + 10, angle: 0
+      });
+
+      // Create house
+      const house = createHouse(def);
+      scene.add(house);
+    });
+
+    // Trees
+    const treePositions = [
+      [-15, -15], [15, -50], [-50, 10], [50, -10], [-45, -45],
+      [45, 45], [-20, 50], [20, -60], [55, -40], [-55, 40],
+      [60, 20], [-60, -20], [0, 70], [0, -75], [40, -60],
+      [-40, 60], [70, 0], [-70, 5], [25, 55], [-25, -55]
+    ];
+    treePositions.forEach(([x, z]) => scene.add(createTree(x, z)));
+
+    // Lamp posts
+    [[-3, -20], [3, -20], [-3, 20], [3, 20], [-3, -40], [3, 40], [-20, -3], [20, 3]].forEach(([x, z]) => {
+      scene.add(createLamp(x, z));
+    });
+
+    // Park bench
+    function createBench(x, z, rotY) {
+      const g = new THREE.Group();
+      const seatGeo = new THREE.BoxGeometry(3, 0.15, 1);
+      const woodMat = new THREE.MeshPhongMaterial({ color: 0xA0522D });
+      const seat = new THREE.Mesh(seatGeo, woodMat);
+      seat.position.set(x, 0.8, z);
+      seat.rotation.y = rotY || 0;
+      g.add(seat);
+      const backGeo = new THREE.BoxGeometry(3, 1, 0.1);
+      const back = new THREE.Mesh(backGeo, woodMat);
+      back.position.set(x, 1.3, z - 0.45);
+      back.rotation.y = rotY || 0;
+      g.add(back);
+      // Legs
+      const legGeo = new THREE.CylinderGeometry(0.06, 0.06, 0.8, 6);
+      const legMat = new THREE.MeshPhongMaterial({ color: 0x333333 });
+      [[-1, -0.3], [-1, 0.3], [1, -0.3], [1, 0.3]].forEach(([dx, dz]) => {
+        const leg = new THREE.Mesh(legGeo, legMat);
+        leg.position.set(x + dx, 0.4, z + dz);
+        g.add(leg);
+      });
+      return g;
+    }
+    scene.add(createBench(8, -8, 0));
+    scene.add(createBench(-8, 8, Math.PI / 2));
+
+    // Clouds
+    for (let i = 0; i < 15; i++) {
+      const cloudGroup = new THREE.Group();
+      for (let j = 0; j < 4; j++) {
+        const cloudGeo = new THREE.SphereGeometry(2 + Math.random() * 2, 12, 12);
+        const cloudMat = new THREE.MeshPhongMaterial({ color: 0xffffff, transparent: true, opacity: 0.8 });
+        const cloud = new THREE.Mesh(cloudGeo, cloudMat);
+        cloud.position.set(j * 2.5 - 3.5, Math.random() * 1.5, Math.random() * 2 - 1);
+        cloudGroup.add(cloud);
+      }
+      cloudGroup.position.set(
+        Math.random() * 200 - 100,
+        30 + Math.random() * 20,
+        Math.random() * 200 - 100
+      );
+      cloudGroup.userData.speed = 0.02 + Math.random() * 0.03;
+      scene.add(cloudGroup);
+    }
+
+    // ========== GAME STATE ==========
+    let activeCharIdx = 0;
+    const keys = {};
+    const speed = 0.2;
+    let camAngle = Math.PI / 4;
+    let camDist = 25;
+    let camHeight = 18;
+    let isMouseDown = false;
+    let lastMouseX = 0;
+    let walkTime = 0;
+
+    // ========== CHARACTER SWITCHING ==========
+    function switchChar(idx) {
+      if (idx < 0 || idx >= charDefs.length) return;
+      characterModels[activeCharIdx].visible = false;
+      activeCharIdx = idx;
+      characterModels[activeCharIdx].visible = true;
+
+      // Update UI
+      document.querySelectorAll('.char-btn').forEach((b, i) => {
+        b.classList.toggle('active', i === idx);
+      });
+      document.getElementById('currentChar').textContent = `${charDefs[idx].emoji} ${charDefs[idx].name}`;
+    }
+
+    // ========== INPUT ==========
+    document.addEventListener('keydown', e => {
+      const k = e.key.toLowerCase();
+      keys[k] = true;
+      if (k >= '1' && k <= '5') switchChar(parseInt(k) - 1);
+    });
+    document.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+
+    // Mouse camera rotation
+    renderer.domElement.addEventListener('mousedown', e => { isMouseDown = true; lastMouseX = e.clientX; });
+    document.addEventListener('mouseup', () => isMouseDown = false);
+    document.addEventListener('mousemove', e => {
+      if (isMouseDown) {
+        camAngle += (e.clientX - lastMouseX) * 0.005;
+        lastMouseX = e.clientX;
+      }
+    });
+    renderer.domElement.addEventListener('wheel', e => {
+      camDist = Math.max(10, Math.min(50, camDist + e.deltaY * 0.03));
+    });
+
+    // ========== MINIMAP ==========
+    const minimapCanvas = document.getElementById('minimapCanvas');
+    const minimapCtx = minimapCanvas.getContext('2d');
+
+    function drawMinimap() {
+      minimapCtx.fillStyle = '#1a3a1a';
+      minimapCtx.fillRect(0, 0, 150, 150);
+
+      const scale = 150 / 200;
+      const offsetX = 75, offsetY = 75;
+
+      // Roads
+      minimapCtx.fillStyle = '#555';
+      minimapCtx.fillRect(72, 0, 6, 150);
+      minimapCtx.fillRect(0, 72, 150, 6);
+
+      // Houses
+      charDefs.forEach(def => {
+        const hx = def.housePos.x * scale + offsetX;
+        const hz = def.housePos.z * scale + offsetY;
+        minimapCtx.fillStyle = '#' + def.houseColor.toString(16).padStart(6, '0');
+        minimapCtx.fillRect(hx - 4, hz - 4, 8, 8);
+      });
+
+      // Player
+      const ch = characters[activeCharIdx];
+      const px = ch.x * scale + offsetX;
+      const pz = ch.z * scale + offsetY;
+      minimapCtx.fillStyle = '#FFD700';
+      minimapCtx.beginPath();
+      minimapCtx.arc(px, pz, 4, 0, Math.PI * 2);
+      minimapCtx.fill();
+      minimapCtx.strokeStyle = '#fff';
+      minimapCtx.lineWidth = 1;
+      minimapCtx.stroke();
+    }
+
+    // ========== GAME LOOP ==========
+    function update() {
+      requestAnimationFrame(update);
+
+      const ch = characters[activeCharIdx];
+      const model = characterModels[activeCharIdx];
+      let moving = false;
+
+      // Movement relative to camera angle
+      let dx = 0, dz = 0;
+      if (keys['w']) { dz += 1; moving = true; }
+      if (keys['s']) { dz -= 1; moving = true; }
+      if (keys['a']) { dx -= 1; moving = true; }
+      if (keys['d']) { dx += 1; moving = true; }
+
+      if (moving) {
+        // Transform input relative to camera
+        const sin = Math.sin(camAngle);
+        const cos = Math.cos(camAngle);
+        const worldDx = dx * cos - dz * sin;
+        const worldDz = dx * sin + dz * cos;
+
+        const len = Math.sqrt(worldDx * worldDx + worldDz * worldDz);
+        ch.x += (worldDx / len) * speed;
+        ch.z += (worldDz / len) * speed;
+
+        // Clamp to map
+        ch.x = Math.max(-95, Math.min(95, ch.x));
+        ch.z = Math.max(-95, Math.min(95, ch.z));
+
+        // Rotate to face direction
+        ch.angle = Math.atan2(worldDx, worldDz);
+      }
+
+      // Update model
+      model.position.set(ch.x, 0, ch.z);
+      model.rotation.y = ch.angle;
+
+      // Walking animation
+      if (moving) {
+        walkTime += 0.15;
+        const ud = model.userData;
+        if (ud.armL) {
+          ud.armL.rotation.x = Math.sin(walkTime) * 0.5;
+          ud.armR.rotation.x = -Math.sin(walkTime) * 0.5;
+          ud.legL.rotation.x = -Math.sin(walkTime) * 0.4;
+          ud.legR.rotation.x = Math.sin(walkTime) * 0.4;
+        }
+        // Bounce
+        model.position.y = Math.abs(Math.sin(walkTime * 2)) * 0.15;
+      } else {
+        walkTime = 0;
+        const ud = model.userData;
+        if (ud.armL) {
+          ud.armL.rotation.x *= 0.9;
+          ud.armR.rotation.x *= 0.9;
+          ud.legL.rotation.x *= 0.9;
+          ud.legR.rotation.x *= 0.9;
+        }
+        model.position.y *= 0.9;
+      }
+
+      // Camera follow
+      const targetCamX = ch.x + Math.sin(camAngle) * camDist;
+      const targetCamZ = ch.z + Math.cos(camAngle) * camDist;
+      camera.position.x += (targetCamX - camera.position.x) * 0.08;
+      camera.position.y += (camHeight - camera.position.y) * 0.08;
+      camera.position.z += (targetCamZ - camera.position.z) * 0.08;
+      camera.lookAt(ch.x, 2, ch.z);
+
+      // Animate clouds
+      scene.children.forEach(child => {
+        if (child.userData.speed) {
+          child.position.x += child.userData.speed;
+          if (child.position.x > 120) child.position.x = -120;
+        }
+      });
+
+      // Minimap
+      drawMinimap();
+
+      renderer.render(scene, camera);
+    }
+
+    // ========== RESIZE ==========
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // Start - snap camera to active character immediately
+    {
+      const ch = characters[activeCharIdx];
+      camera.position.set(
+        ch.x + Math.sin(camAngle) * camDist,
+        camHeight,
+        ch.z + Math.cos(camAngle) * camDist
+      );
+      camera.lookAt(ch.x, 2, ch.z);
+    }
+    update();
+  </script>
+</body>
+
+</html>
