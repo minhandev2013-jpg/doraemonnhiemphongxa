@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChatBot AI Demo</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0F0C29 0%, #302B63 50%, #24243E 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            overflow: hidden;
+        }
+
+        .demo-container {
+            text-align: center;
+            padding: 40px;
+            max-width: 700px;
+        }
+
+        .demo-emoji {
+            font-size: 80px;
+            margin-bottom: 20px;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-15px);
+            }
+        }
+
+        h1 {
+            font-size: 48px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #6C63FF, #A855F7, #EC4899);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 16px;
+        }
+
+        .subtitle {
+            font-size: 20px;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 40px;
+            line-height: 1.6;
+        }
+
+        .features {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .feature-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 24px 16px;
+            transition: all 0.3s;
+        }
+
+        .feature-card:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-4px);
+            border-color: rgba(108, 99, 255, 0.4);
+        }
+
+        .feature-icon {
+            font-size: 32px;
+            margin-bottom: 12px;
+        }
+
+        .feature-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .feature-desc {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .code-block {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: left;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            color: #A5F3FC;
+            margin-bottom: 24px;
+            overflow-x: auto;
+        }
+
+        .code-comment {
+            color: #6B7280;
+        }
+
+        .code-tag {
+            color: #F472B6;
+        }
+
+        .code-attr {
+            color: #FBBF24;
+        }
+
+        .code-value {
+            color: #34D399;
+        }
+
+        .hint {
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.5);
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .hint span {
+            color: #A855F7;
+            font-weight: 600;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 0.5;
+            }
+
+            50% {
+                opacity: 1;
+            }
+        }
+
+        /* Background decoration */
+        .bg-circle {
+            position: fixed;
+            border-radius: 50%;
+            background: rgba(108, 99, 255, 0.1);
+            filter: blur(60px);
+            pointer-events: none;
+        }
+
+        .bg-circle-1 {
+            width: 400px;
+            height: 400px;
+            top: -100px;
+            left: -100px;
+        }
+
+        .bg-circle-2 {
+            width: 300px;
+            height: 300px;
+            bottom: -50px;
+            right: -50px;
+            background: rgba(168, 85, 247, 0.1);
+        }
+
+        @media (max-width: 600px) {
+            h1 {
+                font-size: 32px;
+            }
+
+            .features {
+                grid-template-columns: 1fr;
+            }
+
+            .demo-container {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="bg-circle bg-circle-1"></div>
+    <div class="bg-circle bg-circle-2"></div>
+
+    <div class="demo-container">
+        <div class="demo-emoji">🤖</div>
+        <h1>ChatBot AI</h1>
+        <p class="subtitle">
+            Chatbot thông minh, dễ nhúng vào bất kỳ trang web nào.<br>
+            Chỉ cần 1 dòng code!
+        </p>
+
+        <div class="features">
+            <div class="feature-card">
+                <div class="feature-icon">💬</div>
+                <div class="feature-title">Trò chuyện AI</div>
+                <div class="feature-desc">Trả lời thông minh bằng tiếng Việt</div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🎨</div>
+                <div class="feature-title">Giao diện đẹp</div>
+                <div class="feature-desc">Thiết kế hiện đại, responsive</div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">⚡</div>
+                <div class="feature-title">Dễ tích hợp</div>
+                <div class="feature-desc">Nhúng vào web chỉ 1 dòng script</div>
+            </div>
+        </div>
+
+        <div class="code-block">
+            <span class="code-comment">&lt;!-- Thêm dòng này vào trước &lt;/body&gt; --&gt;</span><br>
+            <span class="code-tag">&lt;script</span>
+            <span class="code-attr"> src=</span><span class="code-value">"http://localhost:5000/widget.js"</span><span
+                class="code-tag">&gt;&lt;/script&gt;</span>
+        </div>
+
+        <p class="hint">👇 Nhấn vào <span>bong bóng chat</span> ở góc phải để thử!</p>
+    </div>
+
+    <!-- Nhúng chatbot widget -->
+    <script src="/widget.js"></script>
+</body>
+
+</html>
